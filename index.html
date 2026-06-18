@@ -241,20 +241,25 @@
         renderStats();
     }
 
-    function switchTab(tabName) {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.app-screen .view, .container > .view').forEach(v => v.classList.remove('active'));
-        
-        const targetTab = document.getElementById(`tab-${tabName}`);
-        const targetView = document.getElementById(`view-${tabName}`);
-        
-        if (targetTab) targetTab.classList.add('active');
-        if (targetView) targetView.classList.add('active');
+function switchTab(tabName) {
+    // 1. Usuń klasę 'active' ze wszystkich przycisków (odznacz zakładki)
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    
+    // 2. POPRAWKA: Ukryj absolutnie wszystkie widoki wewnątrz ekranu aplikacji
+    document.querySelectorAll('#app-screen .view').forEach(v => v.classList.remove('active'));
+    
+    // 3. Znajdź i aktywuj tylko tę zakładkę i widok, które kliknąłeś
+    const targetTab = document.getElementById(`tab-${tabName}`);
+    const targetView = document.getElementById(`view-${tabName}`);
+    
+    if (targetTab) targetTab.classList.add('active');
+    if (targetView) targetView.classList.add('active');
 
-        if(tabName === 'quiz') initQuizSession();
-        if(tabName === 'dict') renderDictionary();
-        if(tabName === 'stats') renderStats();
-    }
+    // 4. Odśwież dane dla wybranego widoku
+    if(tabName === 'quiz') initQuizSession();
+    if(tabName === 'dict') renderDictionary();
+    if(tabName === 'stats') renderStats();
+}
 
     // IMPORT I ZAPIS W CHMURZE
     async function importFromAI() {
