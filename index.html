@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartFiszki z AI (Wersja Stabilna)</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --success: #10b981;
+            --danger: #ef4444;
+            --bg: #f3f4f6;
+            --card-bg: #ffffff;
+        }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container { max-width: 500px; width: 100%; }
+        h1 { text-align: center; color: #1f2937; margin-bottom: 10px; }
+        
+        /* Menu Zakładek */
+        .tabs { display: flex; gap: 5px; margin-bottom: 20px; }
+        .tab-btn {
+            flex: 1; padding: 10px 5px; background: #e5e7eb; border: none;
+            border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px;
+            color: #4b5563;
+        }
+        .tab-btn.active { background: var(--primary); color: white; }
+        .view { display: none; }
+        .view.active { display: block; }
+
+        /* Formularze */
+        textarea {
+            width: 100%; height: 180px; padding: 10px; border-radius: 8px;
+            border: 1px solid #d1d5db; box-sizing: border-box; font-size: 14px;
+            font-family: monospace;
+        }
+        button.main-btn {
+            width: 100%; background-color: var(--primary); color: white; border: none;
+            padding: 14px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px;
+        }
+
+        /* Karta Quizu */
+        .quiz-card {
+            background: var(--card-bg); padding: 30px 20px; border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; margin-bottom: 20px;
+        }
+        .question-tag { font-size: 14px; color: #6b7280; text-transform: uppercase; letter-spacing: 1px; }
+        .question-word { font-size: 28px; font-weight: bold; margin: 10px 0; color: #111827; }
+        
+        /* Definicja pod quizem */
+        .definition-box {
+            background: #eff6ff; border-left: 4px solid var(--primary);
+            padding: 15px; border-radius: 0 8px 8px 0; margin-top: 15px; text-align: left; font-size: 15px; display: none;
+        }
+
+        /* Opcje odpowiedzi */
+        .options-grid { display: flex; flex-direction: column; gap: 10px; }
+        .option-btn {
+            background: white; border: 2px solid #e5e7eb; padding: 14px;
+            border-radius: 10px; font-size: 16px; text-align: left; cursor: pointer; transition: 0.2s;
+        }
+        .option-btn:not(:disabled):hover { border-color: var(--primary); background: #f9fafb; }
+        .option-btn.correct { background: #d1fae5; border-color: var(--success); color: #065f46; font-weight: bold; }
+        .option-btn.wrong { background: #fee2e2; border-color: var(--danger); color: #991b1b; }
+        
+        /* Zarządzanie Słownikiem */
+        .dict-item {
+            background: white; padding: 15px; border-radius: 10px; margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02); display: flex; flex-direction: column; gap: 8px;
+        }
+        .dict-row { display: flex; gap: 10px; }
+        .dict-row input { flex: 1; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; }
+        .dict-item textarea { height: 60px; font-size: 14px; font-family: sans-serif; resize: vertical; }
+        .dict-actions { display: flex; justify-content: flex-end; gap: 10px; }
+        .dict-btn-save { background: var(--success); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+        .dict-btn-del { background: var(--danger); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+
+        /* Statystyki */
+        .stat-box { background: white; padding: 15px; border-radius: 10px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .history-list { max-height: 250px; overflow-y: auto; margin-top: 10px; }
+        .history-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
+        .feedback { text-align: center; font-weight: bold; margin-top: 15px; min-height: 24px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🧠 SmartFiszki z AI</h1>
+    
+    <div class="tabs">
+        <button class="tab-btn active" id="tab-add" onclick="switchTab('add')">📥 Import z AI</button>
+        <button class="tab-btn" id="tab-quiz" onclick="switchTab('quiz')">🎯 Quiz</button>
+        <button class="tab-btn" id="tab-dict" onclick="switchTab('dict')">📖 Słownik</button>
+        <button class="tab-btn" id="tab-stats" onclick="switchTab('stats')">📊 Postępy</button>
+    </div>
+
+    <div id="view-add" class="view active">
+        <h2>Wklej kod JSON od AI</h2>
+        <p style="font-size: 13px; color: #6b7280; margin-top: -10px;">Skopiuj cały niebieski blok kodu z poprzedniej wiadomości i wklej go poniżej.</p>
+        <textarea id="jsonInput" placeholder="[{&quot;en&quot;: &quot;word&quot;, &quot;pl&quot;: &quot;słowo&quot;, &quot;definition&quot;: &quot;definicja&quot;}]"></textarea>
+        <button class="main-btn" onclick="importFromAI()">Zatwierdź i dodaj do bazy</button>
+    </div>
+
+    <div id="view-quiz" class="view">
+        <div style="display: flex; justify-content: space-between; color: #6b7280; font-size: 14px; margin-bottom: 10px;">
+            <span id="quiz-progress">Pytanie: 0/10</span>
+            <span id="quiz-score">Punkty: 0</span>
+        </div>
+        
+        <div class="quiz-card">
+            <div id="question-lang" class="question-tag">Jak to przetłumaczysz?</div>
+            <div id="question-text" class="question-word">Brak słówek!</div>
+            
+            <div id="definition-container" class="definition-box">
+                <strong>💡 Definicja/Kontekst:</strong><br>
+                <span id="definition-text"></span>
+            </div>
+        </div>
+
+        <div id="options-container" class="options-grid"></div>
+        
+        <div id="feedback-text" class="feedback"></div>
+        <button id="nextBtn" class="main-btn" style="display:none;" onclick="loadNextQuestion()">Dalej ➡️</button>
+    </div>
+
+    <div id="view-dict" class="view">
+        <h2>Twój Słownik</h2>
+        <div id="dictionary-list"></div>
+    </div>
+
+    <div id="view-stats" class="view">
+        <h2>Twoje Postępy</h2>
+        <div class="stat-box">
+            <strong>Wszystkich słówek w bazie:</strong> <span id="stat-total-words">0</span>
+        </div>
+        <h3>Ostatnie sesje:</h3>
+        <div class="stat-box">
+            <div class="history-list" id="history-container"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Bezpieczne ładowanie pamięci podręcznej (odporne na stare śmieci w przeglądarce)
+    let flashcards = [];
+    try {
+        flashcards = JSON.parse(localStorage.getItem('smartFlashcards')) || [];
+        if(!Array.isArray(flashcards)) flashcards = [];
+    } catch(e) {
+        flashcards = [];
+    }
+
+    let historyLog = [];
+    try {
+        historyLog = JSON.parse(localStorage.getItem('flashcardsHistory')) || [];
+        if(!Array.isArray(historyLog)) historyLog = [];
+    } catch(e) {
+        historyLog = [];
+    }
+
+    let currentSession = {
+        active: false,
+        questionCount: 0,
+        correctAnswers: 0,
+        currentWord: null,
+        correctAnswerText: '',
+        quizType: 'enToPl'
+    };
+
+    // Nowa, uproszczona i w 100% stabilna funkcja przełączania zakładek
+    function switchTab(tabName) {
+        // Ukryj wszystko i zabierz podświetlenia
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        
+        // Aktywuj właściwy przycisk i widok po ID
+        const targetTab = document.getElementById(`tab-${tabName}`);
+        const targetView = document.getElementById(`view-${tabName}`);
+        
+        if (targetTab) targetTab.classList.add('active');
+        if (targetView) targetView.classList.add('active');
+
+        // Uruchom odpowiednie funkcje odświeżające dane
+        if(tabName === 'quiz') initQuizSession();
+        if(tabName === 'dict') renderDictionary();
+        if(tabName === 'stats') renderStats();
+    }
+
+    // Funkcja importu pakietu JSON
+    function importFromAI() {
+        const input = document.getElementById('jsonInput').value.trim();
+        if(!input) return alert('Wklej najpierw kod wygenerowany przez AI!');
+
+        try {
+            const importedData = JSON.parse(input);
+            
+            if(!Array.isArray(importedData)) {
+                throw new Error("Dane muszą być listą.");
+            }
+
+            let addedCount = 0;
+            let duplicateCount = 0;
+
+            importedData.forEach(item => {
+                if(item.en && item.pl) {
+                    const exists = flashcards.some(f => f.en.toLowerCase() === item.en.trim().toLowerCase());
+                    if(!exists) {
+                        flashcards.push({
+                            en: item.en.trim(),
+                            pl: item.pl.trim(),
+                            definition: item.definition ? item.definition.trim() : "",
+                            score: 0
+                        });
+                        addedCount++;
+                    } else {
+                        duplicateCount++;
+                    }
+                }
+            });
+
+            localStorage.setItem('smartFlashcards', JSON.stringify(flashcards));
+            document.getElementById('jsonInput').value = '';
+            
+            alert(`Sukces! Dodano nowych słówek: ${addedCount}. Pominięto duplikatów: ${duplicateCount}.`);
+            switchTab('dict'); // Automatyczne przejście do słownika po sukcesie
+
+        } catch (e) {
+            alert('Błąd! Upewnij się, że skopiowałeś CAŁY blok kodu (od [ do ]).');
+            console.error(e);
+        }
+    }
+
+    function initQuizSession() {
+        if(flashcards.length < 4) {
+            document.getElementById('question-text').innerText = "Wymagane min. 4 słówka!";
+            document.getElementById('options-container').innerHTML = "<p style='text-align:center; color:gray;'>Wklej paczkę od AI w zakładce 'Import z AI', aby móc uruchomić quiz.</p>";
+            return;
+        }
+        currentSession.active = true;
+        currentSession.questionCount = 0;
+        currentSession.correctAnswers = 0;
+        loadNextQuestion();
+    }
+
+    function loadNextQuestion() {
+        if(currentSession.questionCount >= 10) {
+            endSession();
+            return;
+        }
+
+        document.getElementById('nextBtn').style.display = 'none';
+        document.getElementById('feedback-text').innerText = '';
+        document.getElementById('definition-container').style.display = 'none';
+        currentSession.questionCount++;
+        
+        let sortedCards = [...flashcards].sort((a, b) => (a.score || 0) - (b.score || 0));
+        let poolSize = Math.min(6, sortedCards.length);
+        let randomIndex = Math.floor(Math.random() * poolSize);
+        let selectedWord = sortedCards[randomIndex];
+        
+        currentSession.currentWord = selectedWord;
+        currentSession.quizType = Math.random() > 0.5 ? 'enToPl' : 'plToEn';
+        
+        let questionText = '';
+        if(currentSession.quizType === 'enToPl') {
+            questionText = selectedWord.en;
+            currentSession.correctAnswerText = selectedWord.pl;
+            document.getElementById('question-lang').innerText = "Jak po polsku jest:";
+        } else {
+            questionText = selectedWord.pl;
+            currentSession.correctAnswerText = selectedWord.en;
+            document.getElementById('question-lang').innerText = "Jak po angielsku jest:";
+        }
+        
+        document.getElementById('question-text').innerText = questionText;
+        document.getElementById('quiz-progress').innerText = `Pytanie: ${currentSession.questionCount}/10`;
+        document.getElementById('quiz-score').innerText = `Punkty: ${currentSession.correctAnswers}`;
+
+        generateOptions(selectedWord);
+    }
+
+    function generateOptions(correctWord) {
+        let options = [currentSession.correctAnswerText];
+        let wrongPool = flashcards
+            .map(f => currentSession.quizType === 'enToPl' ? f.pl : f.en)
+            .filter(text => text !== currentSession.correctAnswerText);
+        
+        while(options.length < 4 && wrongPool.length > 0) {
+            let randIdx = Math.floor(Math.random() * wrongPool.length);
+            let wrongWord = wrongPool.splice(randIdx, 1)[0];
+            if(!options.includes(wrongWord)) options.push(wrongWord);
+        }
+
+        options.sort(() => Math.random() - 0.5);
+
+        const container = document.getElementById('options-container');
+        container.innerHTML = '';
+        
+        options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.innerText = opt;
+            btn.onclick = () => checkAnswer(btn, opt);
+            container.appendChild(btn);
+        });
+    }
+
+    function checkAnswer(selectedBtn, chosenText) {
+        document.querySelectorAll('.option-btn').forEach(b => b.disabled = true);
+        let wordInBase = flashcards.find(f => f.en === currentSession.currentWord.en);
+
+        if(chosenText === currentSession.correctAnswerText) {
+            selectedBtn.classList.add('correct');
+            document.getElementById('feedback-text').innerHTML = "<span style='color:var(--success)'>🎉 Świetnie!</span>";
+            currentSession.correctAnswers++;
+            if(wordInBase) wordInBase.score = (wordInBase.score || 0) + 1;
+        } else {
+            selectedBtn.classList.add('wrong');
+            document.getElementById('feedback-text').innerHTML = `<span style='color:var(--danger)'>❌ Błąd! Poprawnie: ${currentSession.correctAnswerText}</span>`;
+            if(wordInBase) wordInBase.score = Math.max(0, (wordInBase.score || 0) - 1);
+            
+            document.querySelectorAll('.option-btn').forEach(b => {
+                if(b.innerText === currentSession.correctAnswerText) b.classList.add('correct');
+            });
+        }
+
+        if(currentSession.currentWord.definition) {
+            document.getElementById('definition-text').innerText = currentSession.currentWord.definition;
+            document.getElementById('definition-container').style.display = 'block';
+        }
+
+        localStorage.setItem('smartFlashcards', JSON.stringify(flashcards));
+        document.getElementById('nextBtn').style.display = 'block';
+    }
+
+    function endSession() {
+        currentSession.active = false;
+        let now = new Date();
+        let sessionRecord = {
+            date: now.toLocaleDateString() + ' ' + now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+            score: `${currentSession.correctAnswers}/10`
+        };
+        historyLog.unshift(sessionRecord);
+        localStorage.setItem('flashcardsHistory', JSON.stringify(historyLog));
+
+        document.getElementById('question-lang').innerText = "Runda ukończona!";
+        document.getElementById('question-text').innerText = `${currentSession.correctAnswers} / 10`;
+        document.getElementById('options-container').innerHTML = "";
+        document.getElementById('feedback-text').innerText = "Statystyki zaktualizowane.";
+        document.getElementById('nextBtn').style.display = 'none';
+    }
+
+    function renderDictionary() {
+        const container = document.getElementById('dictionary-list');
+        if(flashcards.length === 0) {
+            container.innerHTML = "<p style='text-align:center; color:gray;'>Twój słownik jest pusty.</p>";
+            return;
+        }
+
+        container.innerHTML = flashcards.map((card, index) => `
+            <div class="dict-item">
+                <div class="dict-row">
+                    <input type="text" id="edit-en-${index}" value="${card.en}">
+                    <input type="text" id="edit-pl-${index}" value="${card.pl}">
+                </div>
+                <textarea id="edit-def-${index}">${card.definition || ''}</textarea>
+                <div class="dict-actions">
+                    <button class="dict-btn-save" onclick="updateWord(${index})">💾 Zapisz</button>
+                    <button class="dict-btn-del" onclick="deleteWord(${index})">🗑️ Usuń</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function updateWord(index) {
+        flashcards[index].en = document.getElementById(`edit-en-${index}`).value.trim();
+        flashcards[index].pl = document.getElementById(`edit-pl-${index}`).value.trim();
+        flashcards[index].definition = document.getElementById(`edit-def-${index}`).value.trim();
+        localStorage.setItem('smartFlashcards', JSON.stringify(flashcards));
+        alert("Zapisano!");
+        renderDictionary();
+    }
+
+    function deleteWord(index) {
+        if(confirm("Usunąć to słówko?")) {
+            flashcards.splice(index, 1);
+            localStorage.setItem('smartFlashcards', JSON.stringify(flashcards));
+            renderDictionary();
+        }
+    }
+
+    function renderStats() {
+        document.getElementById('stat-total-words').innerText = flashcards.length;
+        const historyContainer = document.getElementById('history-container');
+        if(historyLog.length === 0) {
+            historyContainer.innerHTML = "<div style='color: #9ca3af; text-align: center;'>Brak sesji.</div>";
+            return;
+        }
+        historyContainer.innerHTML = historyLog.map(session => `
+            <div class="history-item">
+                <span>📅 ${session.date}</span>
+                <strong>🎯 Wynik: ${session.score}</strong>
+            </div>
+        `).join('');
+    }
+</script>
+
+</body>
+</html>
