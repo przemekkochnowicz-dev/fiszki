@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartFiszki z AI (Wersja Stabilna)</title>
+    <title>SmartFiszki Cloud v3</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
             --primary: #4f46e5;
@@ -24,12 +25,19 @@
         .container { max-width: 500px; width: 100%; }
         h1 { text-align: center; color: #1f2937; margin-bottom: 10px; }
         
+        /* Ekran logowania */
+        .auth-card {
+            background: white; padding: 25px; border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 12px;
+        }
+        .auth-card input { padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 16px; }
+        .auth-row { display: flex; gap: 10px; }
+        
         /* Menu Zakładek */
         .tabs { display: flex; gap: 5px; margin-bottom: 20px; }
         .tab-btn {
             flex: 1; padding: 10px 5px; background: #e5e7eb; border: none;
-            border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px;
-            color: #4b5563;
+            border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px; color: #4b5563;
         }
         .tab-btn.active { background: var(--primary); color: white; }
         .view { display: none; }
@@ -38,8 +46,7 @@
         /* Formularze */
         textarea {
             width: 100%; height: 180px; padding: 10px; border-radius: 8px;
-            border: 1px solid #d1d5db; box-sizing: border-box; font-size: 14px;
-            font-family: monospace;
+            border: 1px solid #d1d5db; box-sizing: border-box; font-size: 14px; font-family: monospace;
         }
         button.main-btn {
             width: 100%; background-color: var(--primary); color: white; border: none;
@@ -53,8 +60,6 @@
         }
         .question-tag { font-size: 14px; color: #6b7280; text-transform: uppercase; letter-spacing: 1px; }
         .question-word { font-size: 28px; font-weight: bold; margin: 10px 0; color: #111827; }
-        
-        /* Definicja pod quizem */
         .definition-box {
             background: #eff6ff; border-left: 4px solid var(--primary);
             padding: 15px; border-radius: 0 8px 8px 0; margin-top: 15px; text-align: left; font-size: 15px; display: none;
@@ -82,165 +87,223 @@
         .dict-btn-save { background: var(--success); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
         .dict-btn-del { background: var(--danger); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
 
-        /* Statystyki */
         .stat-box { background: white; padding: 15px; border-radius: 10px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
         .history-list { max-height: 250px; overflow-y: auto; margin-top: 10px; }
         .history-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
         .feedback { text-align: center; font-weight: bold; margin-top: 15px; min-height: 24px; }
+        .logout-btn { background: #9ca3af; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; float: right; font-size: 12px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>🧠 SmartFiszki z AI</h1>
+    <h1>🧠 SmartFiszki Cloud</h1>
     
-    <div class="tabs">
-        <button class="tab-btn active" id="tab-add" onclick="switchTab('add')">📥 Import z AI</button>
-        <button class="tab-btn" id="tab-quiz" onclick="switchTab('quiz')">🎯 Quiz</button>
-        <button class="tab-btn" id="tab-dict" onclick="switchTab('dict')">📖 Słownik</button>
-        <button class="tab-btn" id="tab-stats" onclick="switchTab('stats')">📊 Postępy</button>
-    </div>
-
-    <div id="view-add" class="view active">
-        <h2>Wklej kod JSON od AI</h2>
-        <p style="font-size: 13px; color: #6b7280; margin-top: -10px;">Skopiuj cały niebieski blok kodu z poprzedniej wiadomości i wklej go poniżej.</p>
-        <textarea id="jsonInput" placeholder="[{&quot;en&quot;: &quot;word&quot;, &quot;pl&quot;: &quot;słowo&quot;, &quot;definition&quot;: &quot;definicja&quot;}]"></textarea>
-        <button class="main-btn" onclick="importFromAI()">Zatwierdź i dodaj do bazy</button>
-    </div>
-
-    <div id="view-quiz" class="view">
-        <div style="display: flex; justify-content: space-between; color: #6b7280; font-size: 14px; margin-bottom: 10px;">
-            <span id="quiz-progress">Pytanie: 0/10</span>
-            <span id="quiz-score">Punkty: 0</span>
-        </div>
-        
-        <div class="quiz-card">
-            <div id="question-lang" class="question-tag">Jak to przetłumaczysz?</div>
-            <div id="question-text" class="question-word">Brak słówek!</div>
-            
-            <div id="definition-container" class="definition-box">
-                <strong>💡 Definicja/Kontekst:</strong><br>
-                <span id="definition-text"></span>
+    <div id="auth-screen" class="view active">
+        <div class="auth-card">
+            <h2 style="margin-top:0; text-align:center;">Logowanie do chmury</h2>
+            <input type="email" id="auth-email" placeholder="Twój adres e-mail">
+            <input type="password" id="auth-password" placeholder="Hasło (min. 6 znaków)">
+            <div class="auth-row">
+                <button class="main-btn" style="margin:0; flex:1;" onclick="handleLogin()">Zaloguj się</button>
+                <button class="main-btn" style="margin:0; flex:1; background:#6b7280;" onclick="handleRegister()">Zarejestruj się</button>
             </div>
         </div>
-
-        <div id="options-container" class="options-grid"></div>
-        
-        <div id="feedback-text" class="feedback"></div>
-        <button id="nextBtn" class="main-btn" style="display:none;" onclick="loadNextQuestion()">Dalej ➡️</button>
     </div>
 
-    <div id="view-dict" class="view">
-        <h2>Twój Słownik</h2>
-        <div id="dictionary-list"></div>
-    </div>
-
-    <div id="view-stats" class="view">
-        <h2>Twoje Postępy</h2>
-        <div class="stat-box">
-            <strong>Wszystkich słówek w bazie:</strong> <span id="stat-total-words">0</span>
+    <div id="app-screen" class="view">
+        <div style="margin-bottom: 10px; overflow: hidden;">
+            <button class="logout-btn" onclick="handleLogout()">🚪 Wyloguj</button>
+            <span style="font-size: 12px; color: #6b7280;" id="user-display">Zalogowany jako: </span>
         </div>
-        <h3>Ostatnie sesje:</h3>
-        <div class="stat-box">
-            <div class="history-list" id="history-container"></div>
+
+        <div class="tabs">
+            <button class="tab-btn active" id="tab-add" onclick="switchTab('add')">📥 Import z AI</button>
+            <button class="tab-btn" id="tab-quiz" onclick="switchTab('quiz')">🎯 Quiz</button>
+            <button class="tab-btn" id="tab-dict" onclick="switchTab('dict')">📖 Słownik</button>
+            <button class="tab-btn" id="tab-stats" onclick="switchTab('stats')">📊 Postępy</button>
+        </div>
+
+        <div id="view-add" class="view active">
+            <h2>Wklej kod JSON od AI</h2>
+            <textarea id="jsonInput" placeholder="[{&quot;en&quot;: &quot;word&quot;, &quot;pl&quot;: &quot;słowo&quot;}]"></textarea>
+            <button class="main-btn" id="importBtn" onclick="importFromAI()">Zatwierdź i wyślij do chmury</button>
+        </div>
+
+        <div id="view-quiz" class="view">
+            <div style="display: flex; justify-content: space-between; color: #6b7280; font-size: 14px; margin-bottom: 10px;">
+                <span id="quiz-progress">Pytanie: 0/10</span>
+                <span id="quiz-score">Punkty: 0</span>
+            </div>
+            <div class="quiz-card">
+                <div id="question-lang" class="question-tag">Jak to przetłumaczysz?</div>
+                <div id="question-text" class="question-word">Ładowanie...</div>
+                <div id="definition-container" class="definition-box">
+                    <strong>💡 Definicja/Kontekst:</strong><br><span id="definition-text"></span>
+                </div>
+            </div>
+            <div id="options-container" class="options-grid"></div>
+            <div id="feedback-text" class="feedback"></div>
+            <button id="nextBtn" class="main-btn" style="display:none;" onclick="loadNextQuestion()">Dalej ➡️</button>
+        </div>
+
+        <div id="view-dict" class="view">
+            <h2>Twój Słownik w Chmurze</h2>
+            <div id="dictionary-list">Ładowanie słownika...</div>
+        </div>
+
+        <div id="view-stats" class="view">
+            <h2>Twoje Postępy</h2>
+            <div class="stat-box">
+                <strong>Wszystkich słówek w bazie:</strong> <span id="stat-total-words">0</span>
+            </div>
+            <h3>Ostatnie sesje:</h3>
+            <div class="stat-box">
+                <div class="history-list" id="history-container">Ładowanie historii...</div>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
-    // Bezpieczne ładowanie pamięci podręcznej (odporne na stare śmieci w przeglądarce)
-    let flashcards = [];
-    try {
-        flashcards = JSON.parse(localStorage.getItem('smartFlashcards')) || [];
-        if(!Array.isArray(flashcards)) flashcards = [];
-    } catch(e) {
-        flashcards = [];
-    }
+    // ==========================================
+    // 🛠️ TUTAJ WKLEJ SWOJE KLUCZE Z SUPABASE:
+    // ==========================================
+    const SUPABASE_URL = "https://evndvewsfwcjmsjisehz.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_LAXxevm3sAo63gf45gg2lg_u_7amLgl";
 
+    // Inicjalizacja połączenia z chmurą
+    const { createClient } = supabase;
+    const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // Stan aplikacji w pamięci RAM podręcznej
+    let flashcards = [];
     let historyLog = [];
-    try {
-        historyLog = JSON.parse(localStorage.getItem('flashcardsHistory')) || [];
-        if(!Array.isArray(historyLog)) historyLog = [];
-    } catch(e) {
-        historyLog = [];
-    }
+    let currentUser = null;
 
     let currentSession = {
-        active: false,
-        questionCount: 0,
-        correctAnswers: 0,
-        currentWord: null,
-        correctAnswerText: '',
-        quizType: 'enToPl'
+        active: false, questionCount: 0, correctAnswers: 0,
+        currentWord: null, correctAnswerText: '', quizType: 'enToPl'
     };
 
-    // Nowa, uproszczona i w 100% stabilna funkcja przełączania zakładek
-    function switchTab(tabName) {
-        // Ukryj wszystko i zabierz podświetlenia
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    // Śledzenie stanu zalogowania użytkownika
+    _supabase.auth.onAuthStateChange((event, session) => {
+        if (session) {
+            currentUser = session.user;
+            document.getElementById('user-display').innerText = `Zalogowany: ${currentUser.email}`;
+            document.getElementById('auth-screen').classList.remove('active');
+            document.getElementById('app-screen').classList.add('active');
+            syncDataFromCloud();
+        } else {
+            currentUser = null;
+            document.getElementById('auth-screen').classList.add('active');
+            document.getElementById('app-screen').classList.remove('active');
+        }
+    });
+
+    // REJESTRACJA NOWEGO KONTA
+    async function handleRegister() {
+        const email = document.getElementById('auth-email').value.trim();
+        const password = document.getElementById('auth-password').value.trim();
+        if(!email || !password) return alert("Wpisz email i hasło!");
         
-        // Aktywuj właściwy przycisk i widok po ID
+        const { error } = await _supabase.auth.signUp({ email, password });
+        if(error) alert("Błąd rejestracji: " + error.message);
+        else alert("Konto stworzone! Możesz się teraz zalogować.");
+    }
+
+    // LOGOWANIE
+    async function handleLogin() {
+        const email = document.getElementById('auth-email').value.trim();
+        const password = document.getElementById('auth-password').value.trim();
+        
+        const { error } = await _supabase.auth.signInWithPassword({ email, password });
+        if(error) alert("Błąd logowania: " + error.message);
+    }
+
+    // WYLOGOWANIE
+    async function handleLogout() {
+        await _supabase.auth.signOut();
+    }
+
+    // POBIERANIE DANYCH Z CHMURY DO PAMIĘCI TELEFONU/KOMPUTERA
+    async function syncDataFromCloud() {
+        if (!currentUser) return;
+        
+        // Pobierz fiszki
+        const { data: fData } = await _supabase.from('fiszki').select('*').order('created_at', { ascending: false });
+        flashcards = fData || [];
+        
+        // Pobierz historię sesji
+        const { data: sData } = await _supabase.from('sesje').select('*').order('created_at', { ascending: false });
+        historyLog = sData || [];
+
+        renderStats();
+    }
+
+    function switchTab(tabName) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.app-screen .view, .container > .view').forEach(v => v.classList.remove('active'));
+        
         const targetTab = document.getElementById(`tab-${tabName}`);
         const targetView = document.getElementById(`view-${tabName}`);
         
         if (targetTab) targetTab.classList.add('active');
         if (targetView) targetView.classList.add('active');
 
-        // Uruchom odpowiednie funkcje odświeżające dane
         if(tabName === 'quiz') initQuizSession();
         if(tabName === 'dict') renderDictionary();
         if(tabName === 'stats') renderStats();
     }
 
-    // Funkcja importu pakietu JSON
-    function importFromAI() {
+    // IMPORT I ZAPIS W CHMURZE
+    async function importFromAI() {
         const input = document.getElementById('jsonInput').value.trim();
-        if(!input) return alert('Wklej najpierw kod wygenerowany przez AI!');
+        if(!input) return alert('Wklej kod JSON od AI!');
 
         try {
             const importedData = JSON.parse(input);
-            
-            if(!Array.isArray(importedData)) {
-                throw new Error("Dane muszą być listą.");
-            }
+            const btn = document.getElementById('importBtn');
+            btn.disabled = true; btn.innerText = "Wysyłanie do chmury Supabase...";
 
-            let addedCount = 0;
-            let duplicateCount = 0;
+            let rowsToInsert = [];
 
             importedData.forEach(item => {
                 if(item.en && item.pl) {
                     const exists = flashcards.some(f => f.en.toLowerCase() === item.en.trim().toLowerCase());
                     if(!exists) {
-                        flashcards.push({
+                        rowsToInsert.push({
                             en: item.en.trim(),
                             pl: item.pl.trim(),
                             definition: item.definition ? item.definition.trim() : "",
                             score: 0
                         });
-                        addedCount++;
-                    } else {
-                        duplicateCount++;
                     }
                 }
             });
 
-            localStorage.setItem('smartFlashcards', JSON.stringify(flashcards));
-            document.getElementById('jsonInput').value = '';
+            if(rowsToInsert.length > 0) {
+                const { error } = await _supabase.from('fiszki').insert(rowsToInsert);
+                if(error) throw error;
+            }
             
-            alert(`Sukces! Dodano nowych słówek: ${addedCount}. Pominięto duplikatów: ${duplicateCount}.`);
-            switchTab('dict'); // Automatyczne przejście do słownika po sukcesie
+            await syncDataFromCloud();
+            document.getElementById('jsonInput').value = '';
+            btn.disabled = false; btn.innerText = "Zatwierdź i wyślij do chmury";
+            alert(`Pomyślnie zsynchronizowano! Dodano słówek: ${rowsToInsert.length}`);
+            switchTab('dict');
 
         } catch (e) {
-            alert('Błąd! Upewnij się, że skopiowałeś CAŁY blok kodu (od [ do ]).');
+            alert('Błąd importu lub błąd połączenia z chmurą!');
             console.error(e);
+            document.getElementById('importBtn').disabled = false;
         }
     }
 
     function initQuizSession() {
         if(flashcards.length < 4) {
             document.getElementById('question-text').innerText = "Wymagane min. 4 słówka!";
-            document.getElementById('options-container').innerHTML = "<p style='text-align:center; color:gray;'>Wklej paczkę od AI w zakładce 'Import z AI', aby móc uruchomić quiz.</p>";
+            document.getElementById('options-container').innerHTML = "<p style='text-align:center; color:gray;'>Wklej paczkę od AI w zakładce 'Import z AI'.</p>";
             return;
         }
         currentSession.active = true;
@@ -299,68 +362,66 @@
         }
 
         options.sort(() => Math.random() - 0.5);
-
         const container = document.getElementById('options-container');
         container.innerHTML = '';
         
         options.forEach(opt => {
             const btn = document.createElement('button');
-            btn.className = 'option-btn';
-            btn.innerText = opt;
+            btn.className = 'option-btn'; btn.innerText = opt;
             btn.onclick = () => checkAnswer(btn, opt);
             container.appendChild(btn);
         });
     }
 
-    function checkAnswer(selectedBtn, chosenText) {
+    async function checkAnswer(selectedBtn, chosenText) {
         document.querySelectorAll('.option-btn').forEach(b => b.disabled = true);
-        let wordInBase = flashcards.find(f => f.en === currentSession.currentWord.en);
+        let wordInBase = flashcards.find(f => f.id === currentSession.currentWord.id);
+        let newScore = wordInBase.score || 0;
 
         if(chosenText === currentSession.correctAnswerText) {
             selectedBtn.classList.add('correct');
             document.getElementById('feedback-text').innerHTML = "<span style='color:var(--success)'>🎉 Świetnie!</span>";
             currentSession.correctAnswers++;
-            if(wordInBase) wordInBase.score = (wordInBase.score || 0) + 1;
+            newScore++;
         } else {
             selectedBtn.classList.add('wrong');
             document.getElementById('feedback-text').innerHTML = `<span style='color:var(--danger)'>❌ Błąd! Poprawnie: ${currentSession.correctAnswerText}</span>`;
-            if(wordInBase) wordInBase.score = Math.max(0, (wordInBase.score || 0) - 1);
-            
+            newScore = Math.max(0, newScore - 1);
             document.querySelectorAll('.option-btn').forEach(b => {
                 if(b.innerText === currentSession.correctAnswerText) b.classList.add('correct');
             });
         }
 
+        // Aktualizacja wyniku w chmurze
+        wordInBase.score = newScore;
+        await _supabase.from('fiszki').update({ score: newScore }).eq('id', wordInBase.id);
+
         if(currentSession.currentWord.definition) {
             document.getElementById('definition-text').innerText = currentSession.currentWord.definition;
             document.getElementById('definition-container').style.display = 'block';
         }
-
-        localStorage.setItem('smartFlashcards', JSON.stringify(flashcards));
         document.getElementById('nextBtn').style.display = 'block';
     }
 
-    function endSession() {
+    async function endSession() {
         currentSession.active = false;
-        let now = new Date();
-        let sessionRecord = {
-            date: now.toLocaleDateString() + ' ' + now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-            score: `${currentSession.correctAnswers}/10`
-        };
-        historyLog.unshift(sessionRecord);
-        localStorage.setItem('flashcardsHistory', JSON.stringify(historyLog));
+        const scoreString = `${currentSession.correctAnswers}/10`;
+        
+        // Zapis sesji do chmury Supabase
+        await _supabase.from('sesje').insert({ score: scoreString });
+        await syncDataFromCloud();
 
         document.getElementById('question-lang').innerText = "Runda ukończona!";
-        document.getElementById('question-text').innerText = `${currentSession.correctAnswers} / 10`;
+        document.getElementById('question-text').innerText = scoreString;
         document.getElementById('options-container').innerHTML = "";
-        document.getElementById('feedback-text').innerText = "Statystyki zaktualizowane.";
+        document.getElementById('feedback-text').innerText = "Zsynchronizowano wyniki z chmurą.";
         document.getElementById('nextBtn').style.display = 'none';
     }
 
     function renderDictionary() {
         const container = document.getElementById('dictionary-list');
         if(flashcards.length === 0) {
-            container.innerHTML = "<p style='text-align:center; color:gray;'>Twój słownik jest pusty.</p>";
+            container.innerHTML = "<p style='text-align:center; color:gray;'>Twój słownik w chmurze jest pusty.</p>";
             return;
         }
 
@@ -379,20 +440,22 @@
         `).join('');
     }
 
-    function updateWord(index) {
-        flashcards[index].en = document.getElementById(`edit-en-${index}`).value.trim();
-        flashcards[index].pl = document.getElementById(`edit-pl-${index}`).value.trim();
-        flashcards[index].definition = document.getElementById(`edit-def-${index}`).value.trim();
-        localStorage.setItem('smartFlashcards', JSON.stringify(flashcards));
-        alert("Zapisano!");
-        renderDictionary();
+    async function updateWord(index) {
+        const id = flashcards[index].id;
+        const en = document.getElementById(`edit-en-${index}`).value.trim();
+        const pl = document.getElementById(`edit-pl-${index}`).value.trim();
+        const definition = document.getElementById(`edit-def-${index}`).value.trim();
+
+        await _supabase.from('fiszki').update({ en, pl, definition }).eq('id', id);
+        alert("Zapisano zmiany w chmurze!");
+        syncDataFromCloud();
     }
 
-    function deleteWord(index) {
-        if(confirm("Usunąć to słówko?")) {
-            flashcards.splice(index, 1);
-            localStorage.setItem('smartFlashcards', JSON.stringify(flashcards));
-            renderDictionary();
+    async function deleteWord(index) {
+        if(confirm("Usunąć to słówko z chmury na zawsze?")) {
+            const id = flashcards[index].id;
+            await _supabase.from('fiszki').delete().eq('id', id);
+            syncDataFromCloud().then(() => renderDictionary());
         }
     }
 
@@ -403,14 +466,17 @@
             historyContainer.innerHTML = "<div style='color: #9ca3af; text-align: center;'>Brak sesji.</div>";
             return;
         }
-        historyContainer.innerHTML = historyLog.map(session => `
-            <div class="history-item">
-                <span>📅 ${session.date}</span>
-                <strong>🎯 Wynik: ${session.score}</strong>
-            </div>
-        `).join('');
+        historyContainer.innerHTML = historyLog.map(session => {
+            let date = new Date(session.created_at);
+            let formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            return `
+                <div class="history-item">
+                    <span>📅 ${formattedDate}</span>
+                    <strong>🎯 Wynik: ${session.score}</strong>
+                </div>
+            `;
+        }).join('');
     }
 </script>
-
 </body>
 </html>
