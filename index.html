@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartFiszki Cloud v3</title>
+    <title>SmartFiszki Cloud v4 (Z Modułem Zdań)</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -25,64 +25,34 @@
         .container { max-width: 500px; width: 100%; }
         h1 { text-align: center; color: #1f2937; margin-bottom: 10px; }
         
-        /* Ekran logowania */
-        .auth-card {
-            background: white; padding: 25px; border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 12px;
-        }
+        .auth-card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 12px; }
         .auth-card input { padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 16px; }
         .auth-row { display: flex; gap: 10px; }
         
-        /* Menu Zakładek */
         .tabs { display: flex; gap: 5px; margin-bottom: 20px; }
-        .tab-btn {
-            flex: 1; padding: 10px 5px; background: #e5e7eb; border: none;
-            border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px; color: #4b5563;
-        }
+        .tab-btn { flex: 1; padding: 10px 5px; background: #e5e7eb; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px; color: #4b5563; }
         .tab-btn.active { background: var(--primary); color: white; }
         .view { display: none; }
         .view.active { display: block; }
 
-        /* Formularze */
-        textarea {
-            width: 100%; height: 180px; padding: 10px; border-radius: 8px;
-            border: 1px solid #d1d5db; box-sizing: border-box; font-size: 14px; font-family: monospace;
-        }
-        button.main-btn {
-            width: 100%; background-color: var(--primary); color: white; border: none;
-            padding: 14px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px;
-        }
+        textarea { width: 100%; height: 180px; padding: 10px; border-radius: 8px; border: 1px solid #d1d5db; box-sizing: border-box; font-size: 14px; font-family: monospace; }
+        button.main-btn { width: 100%; background-color: var(--primary); color: white; border: none; padding: 14px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
 
-        /* Karta Quizu */
-        .quiz-card {
-            background: var(--card-bg); padding: 30px 20px; border-radius: 15px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; margin-bottom: 20px;
-        }
+        .quiz-card { background: var(--card-bg); padding: 30px 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; margin-bottom: 20px; }
         .question-tag { font-size: 14px; color: #6b7280; text-transform: uppercase; letter-spacing: 1px; }
-        .question-word { font-size: 28px; font-weight: bold; margin: 10px 0; color: #111827; }
-        .definition-box {
-            background: #eff6ff; border-left: 4px solid var(--primary);
-            padding: 15px; border-radius: 0 8px 8px 0; margin-top: 15px; text-align: left; font-size: 15px; display: none;
-        }
+        .question-word { font-size: 24px; font-weight: bold; margin: 10px 0; color: #111827; line-height: 1.4; }
+        .definition-box { background: #eff6ff; border-left: 4px solid var(--primary); padding: 15px; border-radius: 0 8px 8px 0; margin-top: 15px; text-align: left; font-size: 15px; display: none; }
 
-        /* Opcje odpowiedzi */
         .options-grid { display: flex; flex-direction: column; gap: 10px; }
-        .option-btn {
-            background: white; border: 2px solid #e5e7eb; padding: 14px;
-            border-radius: 10px; font-size: 16px; text-align: left; cursor: pointer; transition: 0.2s;
-        }
+        .option-btn { background: white; border: 2px solid #e5e7eb; padding: 14px; border-radius: 10px; font-size: 16px; text-align: left; cursor: pointer; transition: 0.2s; }
         .option-btn:not(:disabled):hover { border-color: var(--primary); background: #f9fafb; }
         .option-btn.correct { background: #d1fae5; border-color: var(--success); color: #065f46; font-weight: bold; }
         .option-btn.wrong { background: #fee2e2; border-color: var(--danger); color: #991b1b; }
         
-        /* Zarządzanie Słownikiem */
-        .dict-item {
-            background: white; padding: 15px; border-radius: 10px; margin-bottom: 15px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02); display: flex; flex-direction: column; gap: 8px;
-        }
+        .dict-item { background: white; padding: 15px; border-radius: 10px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); display: flex; flex-direction: column; gap: 8px; }
         .dict-row { display: flex; gap: 10px; }
         .dict-row input { flex: 1; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; }
-        .dict-item textarea { height: 60px; font-size: 14px; font-family: sans-serif; resize: vertical; }
+        .dict-item textarea { height: 50px; font-size: 14px; font-family: sans-serif; resize: vertical; }
         .dict-actions { display: flex; justify-content: flex-end; gap: 10px; }
         .dict-btn-save { background: var(--success); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
         .dict-btn-del { background: var(--danger); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
@@ -92,6 +62,11 @@
         .history-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
         .feedback { text-align: center; font-weight: bold; margin-top: 15px; min-height: 24px; }
         .logout-btn { background: #9ca3af; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; float: right; font-size: 12px; }
+        
+        /* Pole wpisywania zdania (Cloze Test) */
+        .cloze-input { border: 2px solid var(--primary); border-radius: 6px; padding: 5px 10px; font-size: 20px; font-weight: bold; width: 140px; text-align: center; outline: none; }
+        .cloze-input.correct { border-color: var(--success); background: #d1fae5; color: #065f46; }
+        .cloze-input.wrong { border-color: var(--danger); background: #fee2e2; color: #991b1b; }
     </style>
 </head>
 <body>
@@ -118,7 +93,7 @@
         </div>
 
         <div class="tabs">
-            <button class="tab-btn active" id="tab-add" onclick="switchTab('add')">📥 Import z AI</button>
+            <button class="tab-btn active" id="tab-add" onclick="switchTab('add')">📥 Import</button>
             <button class="tab-btn" id="tab-quiz" onclick="switchTab('quiz')">🎯 Quiz</button>
             <button class="tab-btn" id="tab-dict" onclick="switchTab('dict')">📖 Słownik</button>
             <button class="tab-btn" id="tab-stats" onclick="switchTab('stats')">📊 Postępy</button>
@@ -126,22 +101,29 @@
 
         <div id="view-add" class="view active">
             <h2>Wklej kod JSON od AI</h2>
-            <textarea id="jsonInput" placeholder="[{&quot;en&quot;: &quot;word&quot;, &quot;pl&quot;: &quot;słowo&quot;}]"></textarea>
+            <textarea id="jsonInput" placeholder="[{&quot;en&quot;: &quot;word&quot;, &quot;pl&quot;: &quot;słowo&quot;, &quot;sentence_cloze&quot;: &quot;...&quot;}]"></textarea>
             <button class="main-btn" id="importBtn" onclick="importFromAI()">Zatwierdź i wyślij do chmury</button>
         </div>
 
         <div id="view-quiz" class="view">
+            <select id="quiz-mode-select" onchange="initQuizSession()" style="width:100%; padding: 12px; border-radius: 8px; border: 1px solid var(--primary); font-size: 16px; margin-bottom: 15px; font-weight: bold; background: #e0e7ff;">
+                <option value="words">Tryb: Fiszki (Wybór 4 opcji)</option>
+                <option value="cloze">Tryb: Zdania (Wpisz brakujące słowo)</option>
+            </select>
+
             <div style="display: flex; justify-content: space-between; color: #6b7280; font-size: 14px; margin-bottom: 10px;">
                 <span id="quiz-progress">Pytanie: 0/10</span>
                 <span id="quiz-score">Punkty: 0</span>
             </div>
+            
             <div class="quiz-card">
-                <div id="question-lang" class="question-tag">Jak to przetłumaczysz?</div>
-                <div id="question-text" class="question-word">Ładowanie...</div>
+                <div id="question-lang" class="question-tag">Ładowanie...</div>
+                <div id="question-text" class="question-word">Wybierz tryb wyżej!</div>
                 <div id="definition-container" class="definition-box">
-                    <strong>💡 Definicja/Kontekst:</strong><br><span id="definition-text"></span>
+                    <strong>💡 Definicja/Tłumaczenie:</strong><br><span id="definition-text"></span>
                 </div>
             </div>
+
             <div id="options-container" class="options-grid"></div>
             <div id="feedback-text" class="feedback"></div>
             <button id="nextBtn" class="main-btn" style="display:none;" onclick="loadNextQuestion()">Dalej ➡️</button>
@@ -171,22 +153,19 @@
     // ==========================================
     const SUPABASE_URL = "https://evndvewsfwcjmsjisehz.supabase.co";
     const SUPABASE_ANON_KEY = "sb_publishable_LAXxevm3sAo63gf45gg2lg_u_7amLgl";
-
-    // Inicjalizacja połączenia z chmurą
+    
     const { createClient } = supabase;
     const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // Stan aplikacji w pamięci RAM podręcznej
     let flashcards = [];
     let historyLog = [];
     let currentUser = null;
 
     let currentSession = {
         active: false, questionCount: 0, correctAnswers: 0,
-        currentWord: null, correctAnswerText: '', quizType: 'enToPl'
+        currentWord: null, correctAnswerText: '', quizType: 'enToPl', quizMode: 'words'
     };
 
-    // Śledzenie stanu zalogowania użytkownika
     _supabase.auth.onAuthStateChange((event, session) => {
         if (session) {
             currentUser = session.user;
@@ -201,67 +180,50 @@
         }
     });
 
-    // REJESTRACJA NOWEGO KONTA
     async function handleRegister() {
         const email = document.getElementById('auth-email').value.trim();
         const password = document.getElementById('auth-password').value.trim();
         if(!email || !password) return alert("Wpisz email i hasło!");
-        
         const { error } = await _supabase.auth.signUp({ email, password });
         if(error) alert("Błąd rejestracji: " + error.message);
         else alert("Konto stworzone! Możesz się teraz zalogować.");
     }
 
-    // LOGOWANIE
     async function handleLogin() {
         const email = document.getElementById('auth-email').value.trim();
         const password = document.getElementById('auth-password').value.trim();
-        
         const { error } = await _supabase.auth.signInWithPassword({ email, password });
         if(error) alert("Błąd logowania: " + error.message);
     }
 
-    // WYLOGOWANIE
     async function handleLogout() {
         await _supabase.auth.signOut();
     }
 
-    // POBIERANIE DANYCH Z CHMURY DO PAMIĘCI TELEFONU/KOMPUTERA
     async function syncDataFromCloud() {
         if (!currentUser) return;
-        
-        // Pobierz fiszki
         const { data: fData } = await _supabase.from('fiszki').select('*').order('created_at', { ascending: false });
         flashcards = fData || [];
-        
-        // Pobierz historię sesji
         const { data: sData } = await _supabase.from('sesje').select('*').order('created_at', { ascending: false });
         historyLog = sData || [];
-
         renderStats();
     }
 
-function switchTab(tabName) {
-    // 1. Usuń klasę 'active' ze wszystkich przycisków (odznacz zakładki)
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    
-    // 2. POPRAWKA: Ukryj absolutnie wszystkie widoki wewnątrz ekranu aplikacji
-    document.querySelectorAll('#app-screen .view').forEach(v => v.classList.remove('active'));
-    
-    // 3. Znajdź i aktywuj tylko tę zakładkę i widok, które kliknąłeś
-    const targetTab = document.getElementById(`tab-${tabName}`);
-    const targetView = document.getElementById(`view-${tabName}`);
-    
-    if (targetTab) targetTab.classList.add('active');
-    if (targetView) targetView.classList.add('active');
+    function switchTab(tabName) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('#app-screen .view').forEach(v => v.classList.remove('active'));
+        
+        const targetTab = document.getElementById(`tab-${tabName}`);
+        const targetView = document.getElementById(`view-${tabName}`);
+        
+        if (targetTab) targetTab.classList.add('active');
+        if (targetView) targetView.classList.add('active');
 
-    // 4. Odśwież dane dla wybranego widoku
-    if(tabName === 'quiz') initQuizSession();
-    if(tabName === 'dict') renderDictionary();
-    if(tabName === 'stats') renderStats();
-}
+        if(tabName === 'quiz') initQuizSession();
+        if(tabName === 'dict') renderDictionary();
+        if(tabName === 'stats') renderStats();
+    }
 
-    // IMPORT I ZAPIS W CHMURZE
     async function importFromAI() {
         const input = document.getElementById('jsonInput').value.trim();
         if(!input) return alert('Wklej kod JSON od AI!');
@@ -281,6 +243,7 @@ function switchTab(tabName) {
                             en: item.en.trim(),
                             pl: item.pl.trim(),
                             definition: item.definition ? item.definition.trim() : "",
+                            sentence_cloze: item.sentence_cloze ? item.sentence_cloze.trim() : "",
                             score: 0
                         });
                     }
@@ -299,25 +262,46 @@ function switchTab(tabName) {
             switchTab('dict');
 
         } catch (e) {
-            alert('Błąd importu lub błąd połączenia z chmurą!');
+            alert('Błąd importu! Skopiowałeś całość? Czy na pewno zaktualizowałeś bazę w SQL Editor?');
             console.error(e);
             document.getElementById('importBtn').disabled = false;
         }
     }
 
     function initQuizSession() {
-        if(flashcards.length < 4) {
-            document.getElementById('question-text').innerText = "Wymagane min. 4 słówka!";
-            document.getElementById('options-container').innerHTML = "<p style='text-align:center; color:gray;'>Wklej paczkę od AI w zakładce 'Import z AI'.</p>";
+        currentSession.quizMode = document.getElementById('quiz-mode-select').value;
+        
+        let validCards = flashcards;
+        if(currentSession.quizMode === 'cloze') {
+            // Filtrujemy tylko słówka, które posiadają uzupełnione zdanie z nawiasem kwadratowym
+            validCards = flashcards.filter(f => f.sentence_cloze && f.sentence_cloze.includes('['));
+        }
+
+        if(validCards.length < 4 && currentSession.quizMode === 'words') {
+            document.getElementById('question-text').innerText = "Wymagane min. 4 słówka w bazie!";
+            document.getElementById('options-container').innerHTML = "";
             return;
         }
+        
+        if(validCards.length === 0 && currentSession.quizMode === 'cloze') {
+            document.getElementById('question-text').innerText = "Brak słówek ze zdaniami w bazie!";
+            document.getElementById('options-container').innerHTML = "<p style='color:gray;'>Zaimportuj najpierw json ze zdaniami (z polem sentence_cloze).</p>";
+            return;
+        }
+
         currentSession.active = true;
         currentSession.questionCount = 0;
         currentSession.correctAnswers = 0;
-        loadNextQuestion();
+        loadNextQuestion(validCards);
     }
 
-    function loadNextQuestion() {
+    function loadNextQuestion(validCardsPool) {
+        if(!validCardsPool) {
+            validCardsPool = currentSession.quizMode === 'cloze' 
+                ? flashcards.filter(f => f.sentence_cloze && f.sentence_cloze.includes('[')) 
+                : flashcards;
+        }
+
         if(currentSession.questionCount >= 10) {
             endSession();
             return;
@@ -328,35 +312,57 @@ function switchTab(tabName) {
         document.getElementById('definition-container').style.display = 'none';
         currentSession.questionCount++;
         
-        let sortedCards = [...flashcards].sort((a, b) => (a.score || 0) - (b.score || 0));
+        let sortedCards = [...validCardsPool].sort((a, b) => (a.score || 0) - (b.score || 0));
         let poolSize = Math.min(6, sortedCards.length);
         let randomIndex = Math.floor(Math.random() * poolSize);
         let selectedWord = sortedCards[randomIndex];
-        
         currentSession.currentWord = selectedWord;
-        currentSession.quizType = Math.random() > 0.5 ? 'enToPl' : 'plToEn';
-        
-        let questionText = '';
-        if(currentSession.quizType === 'enToPl') {
-            questionText = selectedWord.en;
-            currentSession.correctAnswerText = selectedWord.pl;
-            document.getElementById('question-lang').innerText = "Jak po polsku jest:";
-        } else {
-            questionText = selectedWord.pl;
-            currentSession.correctAnswerText = selectedWord.en;
-            document.getElementById('question-lang').innerText = "Jak po angielsku jest:";
-        }
-        
-        document.getElementById('question-text').innerText = questionText;
+
         document.getElementById('quiz-progress').innerText = `Pytanie: ${currentSession.questionCount}/10`;
         document.getElementById('quiz-score').innerText = `Punkty: ${currentSession.correctAnswers}`;
 
-        generateOptions(selectedWord);
+        // ROZGAŁĘZIENIE LOGIKI QUIZU
+        if (currentSession.quizMode === 'words') {
+            currentSession.quizType = Math.random() > 0.5 ? 'enToPl' : 'plToEn';
+            let questionText = '';
+            
+            if(currentSession.quizType === 'enToPl') {
+                questionText = selectedWord.en;
+                currentSession.correctAnswerText = selectedWord.pl;
+                document.getElementById('question-lang').innerText = "Jak po polsku jest:";
+            } else {
+                questionText = selectedWord.pl;
+                currentSession.correctAnswerText = selectedWord.en;
+                document.getElementById('question-lang').innerText = "Jak po angielsku jest:";
+            }
+            
+            document.getElementById('question-text').innerText = questionText;
+            generateOptions(selectedWord, validCardsPool);
+            
+        } else if (currentSession.quizMode === 'cloze') {
+            document.getElementById('question-lang').innerText = "Wpisz brakujące słowo:";
+            
+            let sentence = selectedWord.sentence_cloze;
+            let bracketWordMatch = sentence.match(/\[(.*?)\]/);
+            currentSession.correctAnswerText = bracketWordMatch ? bracketWordMatch[1] : selectedWord.en;
+
+            // Tworzymy pole tekstowe (input) w miejscu luki
+            let displaySentence = sentence.replace(/\[.*?\]/, '<input type="text" id="cloze-input" class="cloze-input" autocomplete="off" autocorrect="off" autocapitalize="none">');
+            
+            document.getElementById('question-text').innerHTML = displaySentence;
+            
+            // Pojedynczy przycisk zamiast 4 opcji
+            const container = document.getElementById('options-container');
+            container.innerHTML = '<button class="main-btn" onclick="checkClozeAnswer()">Sprawdź zdanie</button>';
+            
+            // Automatyczny focus na pole
+            setTimeout(() => document.getElementById('cloze-input').focus(), 100);
+        }
     }
 
-    function generateOptions(correctWord) {
+    function generateOptions(correctWord, validCardsPool) {
         let options = [currentSession.correctAnswerText];
-        let wrongPool = flashcards
+        let wrongPool = validCardsPool
             .map(f => currentSession.quizType === 'enToPl' ? f.pl : f.en)
             .filter(text => text !== currentSession.correctAnswerText);
         
@@ -378,41 +384,64 @@ function switchTab(tabName) {
         });
     }
 
-    async function checkAnswer(selectedBtn, chosenText) {
-        document.querySelectorAll('.option-btn').forEach(b => b.disabled = true);
+    async function processScoreUpdate(isCorrect, providedText) {
         let wordInBase = flashcards.find(f => f.id === currentSession.currentWord.id);
         let newScore = wordInBase.score || 0;
 
-        if(chosenText === currentSession.correctAnswerText) {
-            selectedBtn.classList.add('correct');
+        if(isCorrect) {
             document.getElementById('feedback-text').innerHTML = "<span style='color:var(--success)'>🎉 Świetnie!</span>";
             currentSession.correctAnswers++;
             newScore++;
         } else {
-            selectedBtn.classList.add('wrong');
-            document.getElementById('feedback-text').innerHTML = `<span style='color:var(--danger)'>❌ Błąd! Poprawnie: ${currentSession.correctAnswerText}</span>`;
+            document.getElementById('feedback-text').innerHTML = `<span style='color:var(--danger)'>❌ Błąd! Poprawnie: <b>${currentSession.correctAnswerText}</b></span>`;
             newScore = Math.max(0, newScore - 1);
-            document.querySelectorAll('.option-btn').forEach(b => {
-                if(b.innerText === currentSession.correctAnswerText) b.classList.add('correct');
-            });
         }
 
         // Aktualizacja wyniku w chmurze
         wordInBase.score = newScore;
         await _supabase.from('fiszki').update({ score: newScore }).eq('id', wordInBase.id);
 
-        if(currentSession.currentWord.definition) {
-            document.getElementById('definition-text').innerText = currentSession.currentWord.definition;
-            document.getElementById('definition-container').style.display = 'block';
-        }
+        document.getElementById('definition-text').innerHTML = `<strong>Tłumaczenie:</strong> ${currentSession.currentWord.pl}<br><br><strong>Definicja:</strong> ${currentSession.currentWord.definition || 'Brak'}`;
+        document.getElementById('definition-container').style.display = 'block';
         document.getElementById('nextBtn').style.display = 'block';
+    }
+
+    // Sprawdzanie trybu 4 opcji
+    function checkAnswer(selectedBtn, chosenText) {
+        document.querySelectorAll('.option-btn').forEach(b => b.disabled = true);
+        let isCorrect = (chosenText === currentSession.correctAnswerText);
+        
+        if(isCorrect) selectedBtn.classList.add('correct');
+        else {
+            selectedBtn.classList.add('wrong');
+            document.querySelectorAll('.option-btn').forEach(b => {
+                if(b.innerText === currentSession.correctAnswerText) b.classList.add('correct');
+            });
+        }
+        processScoreUpdate(isCorrect, chosenText);
+    }
+
+    // Sprawdzanie trybu Zdań z Luką
+    function checkClozeAnswer() {
+        const inputEl = document.getElementById('cloze-input');
+        const submitBtn = document.querySelector('#options-container button');
+        inputEl.disabled = true;
+        submitBtn.disabled = true;
+
+        const typedText = inputEl.value.trim().toLowerCase();
+        const correctText = currentSession.correctAnswerText.toLowerCase();
+        const isCorrect = (typedText === correctText);
+
+        if(isCorrect) inputEl.classList.add('correct');
+        else inputEl.classList.add('wrong');
+
+        processScoreUpdate(isCorrect, typedText);
     }
 
     async function endSession() {
         currentSession.active = false;
         const scoreString = `${currentSession.correctAnswers}/10`;
         
-        // Zapis sesji do chmury Supabase
         await _supabase.from('sesje').insert({ score: scoreString });
         await syncDataFromCloud();
 
@@ -436,7 +465,8 @@ function switchTab(tabName) {
                     <input type="text" id="edit-en-${index}" value="${card.en}">
                     <input type="text" id="edit-pl-${index}" value="${card.pl}">
                 </div>
-                <textarea id="edit-def-${index}">${card.definition || ''}</textarea>
+                <textarea id="edit-def-${index}" placeholder="Definicja...">${card.definition || ''}</textarea>
+                <textarea id="edit-cloze-${index}" placeholder="Zdanie z luką: np. I have a [dog].">${card.sentence_cloze || ''}</textarea>
                 <div class="dict-actions">
                     <button class="dict-btn-save" onclick="updateWord(${index})">💾 Zapisz</button>
                     <button class="dict-btn-del" onclick="deleteWord(${index})">🗑️ Usuń</button>
@@ -450,8 +480,9 @@ function switchTab(tabName) {
         const en = document.getElementById(`edit-en-${index}`).value.trim();
         const pl = document.getElementById(`edit-pl-${index}`).value.trim();
         const definition = document.getElementById(`edit-def-${index}`).value.trim();
+        const sentence_cloze = document.getElementById(`edit-cloze-${index}`).value.trim();
 
-        await _supabase.from('fiszki').update({ en, pl, definition }).eq('id', id);
+        await _supabase.from('fiszki').update({ en, pl, definition, sentence_cloze }).eq('id', id);
         alert("Zapisano zmiany w chmurze!");
         syncDataFromCloud();
     }
